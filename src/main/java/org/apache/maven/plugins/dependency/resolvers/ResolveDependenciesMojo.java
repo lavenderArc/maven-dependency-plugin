@@ -112,6 +112,18 @@ public class ResolveDependenciesMojo
     private String prjDir;
 
     /**
+     * Output dependency file type. Choose from ( json = json, yaml = yaml, all = json + yaml, none = none)
+     *
+     */
+    @Parameter( property = "outputType", defaultValue = "none" )
+    private String outputType;
+
+    /**
+     * flag to append the prjDir File
+     */
+    private boolean appendStatus = false;
+
+    /**
      * Main entry into mojo. Gets the list of dependencies and iterates through displaying the resolved version.
      *
      * @throws MojoExecutionException with a message if an error occurs.
@@ -176,8 +188,12 @@ public class ResolveDependenciesMojo
         {
             sb.append( buildArtifactListOutput( results.getResolvedDependencies(), outputAbsoluteArtifactFilename,
                                                 theOutputScope, theSort ) );
-            extractJars( results.getResolvedDependencies(), outputAbsoluteArtifactFilename,
-                    theOutputScope, theSort );
+            System.out.println( outputType );
+            if ( !outputType.equalsIgnoreCase( "none" ) )
+            {
+                extractJars( results.getResolvedDependencies(), outputAbsoluteArtifactFilename,
+                        theOutputScope, theSort );
+            }
         }
 
         if ( results.getSkippedDependencies() != null && !results.getSkippedDependencies().isEmpty() )
@@ -290,31 +306,45 @@ public class ResolveDependenciesMojo
             .collect( Collectors.toList() );
         module.setZependencies( minis );
 
-        // write to file(yaml)
-        String filenameYaml = prjDir.concat( "/dep.yaml" );
-        File fileYaml = new File( filenameYaml );
-        String yaml = ( new Yaml() ).dump( module );
-        try
+        if ( outputType.equalsIgnoreCase( "all" ) || outputType.equalsIgnoreCase( "yaml" ) )
         {
-            DependencyUtil.write( yaml, fileYaml, true, null );
-        }
-        catch ( IOException e )
-        {
-            e.printStackTrace();
+            // write to file(yaml)
+            String filenameYaml = prjDir.concat( "/dep.yaml" );
+            File fileYaml = new File( filenameYaml );
+            String yaml = ( new Yaml() ).dump( module );
+            try
+            {
+                DependencyUtil.write( yaml, fileYaml, appendStatus, null );
+            }
+            catch ( IOException e )
+            {
+                e.printStackTrace();
+            }
         }
 
-
-        // write to file(json)
-        String fileName = prjDir.concat( "/dep.json" );
-        File file = new File( fileName );
-        String json = JSONObject.toJSONString( module ) + ",";
-        try
+        if ( outputType.equalsIgnoreCase( "all" ) || outputType.equalsIgnoreCase( "json" ) )
         {
-            DependencyUtil.write( json, file, true, null );
+            // write to file(json)
+            String fileName = prjDir.concat( "/dep.json" );
+            File file = new File( fileName );
+            String json = JSONObject.toJSONString( module ) + ",";
+            if ( !appendStatus )
+            {
+                json = "{\"modules\": [" + json;
+            }
+            try
+            {
+                DependencyUtil.write( json, file, appendStatus, null );
+            }
+            catch ( IOException e )
+            {
+                e.printStackTrace();
+            }
         }
-        catch ( IOException e )
+
+        if ( !appendStatus )
         {
-            e.printStackTrace();
+            appendStatus = true;
         }
     }
 
