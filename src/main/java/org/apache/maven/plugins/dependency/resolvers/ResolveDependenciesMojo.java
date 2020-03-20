@@ -22,6 +22,7 @@ package org.apache.maven.plugins.dependency.resolvers;
 import org.apache.maven.artifact.Artifact;
 
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugins.dependency.fromConfiguration.MiniArtifact;
 import org.apache.maven.plugins.dependency.utils.DependencyStatusSets;
 import org.apache.maven.plugins.dependency.utils.DependencyUtil;
 import org.apache.maven.plugins.dependency.utils.filters.ResolveFileFilter;
@@ -33,6 +34,7 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.shared.artifact.filter.collection.ArtifactsFilter;
 import org.apache.maven.shared.utils.logging.MessageBuilder;
 import org.apache.maven.shared.utils.logging.MessageUtils;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,11 +42,15 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+import java.util.stream.Collectors;
+
+import com.alibaba.fastjson.JSONObject;
 
 /**
  * Goal that resolves the project dependencies from the repository. When using this goal while running on Java 9 the
@@ -75,7 +81,7 @@ public class ResolveDependenciesMojo
 
     /**
      * Sort the output list of resolved artifacts alphabetically. The default ordering matches the classpath order.
-     * 
+     *
      * @since 2.8
      */
     @Parameter( property = "sort", defaultValue = "false" )
@@ -83,11 +89,27 @@ public class ResolveDependenciesMojo
 
     /**
      * Include parent poms in the dependency resolution list.
-     * 
+     *
      * @since 2.8
      */
     @Parameter( property = "includeParents", defaultValue = "false" )
     boolean includeParents;
+
+    /**
+     * Projects main artifact.
+     *
+     * @todo this is an export variable, really
+     */
+    @Parameter( defaultValue = "${project.artifact}", readonly = true, required = true )
+    private Artifact projectArtifact;
+
+    /**
+     * Projects main artifact.
+     *
+     * @todo this is an export variable, really
+     */
+    @Parameter( defaultValue = "${env.PWD}", readonly = true, required = true )
+    private String prjDir;
 
     /**
      * Main entry into mojo. Gets the list of dependencies and iterates through displaying the resolved version.
@@ -154,6 +176,8 @@ public class ResolveDependenciesMojo
         {
             sb.append( buildArtifactListOutput( results.getResolvedDependencies(), outputAbsoluteArtifactFilename,
                                                 theOutputScope, theSort ) );
+            extractJars( results.getResolvedDependencies(), outputAbsoluteArtifactFilename,
+                    theOutputScope, theSort );
         }
 
         if ( results.getSkippedDependencies() != null && !results.getSkippedDependencies().isEmpty() )
@@ -254,6 +278,51 @@ public class ResolveDependenciesMojo
             sb.append( artifactString );
         }
         return sb;
+    }
+
+    private void extractJars( Set<Artifact> artifacts, boolean outputAbsoluteArtifactFilename,
+            boolean theOutputScope, boolean theSort )
+    {
+        MiniArtifact module = buildMiniArtifact( projectArtifact );
+        List<MiniArtifact> minis = artifacts.stream()
+            .map( this::buildMiniArtifact )
+            .sorted( Comparator.comparing( MiniArtifact::getArtifactId ) )
+            .collect( Collectors.toList() );
+        module.setZependencies( minis );
+
+        // write to file(yaml)
+        String filenameYaml = prjDir.concat( "/dep.yaml" );
+        File fileYaml = new File( filenameYaml );
+        String yaml = ( new Yaml() ).dump( module );
+        try
+        {
+            DependencyUtil.write( yaml, fileYaml, true, null );
+        }
+        catch ( IOException e )
+        {
+            e.printStackTrace();
+        }
+
+
+        // write to file(json)
+        String fileName = prjDir.concat( "/dep.json" );
+        File file = new File( fileName );
+        String json = JSONObject.toJSONString( module ) + ",";
+        try
+        {
+            DependencyUtil.write( json, file, true, null );
+        }
+        catch ( IOException e )
+        {
+            e.printStackTrace();
+        }
+    }
+
+    private MiniArtifact buildMiniArtifact( Artifact artifact )
+    {
+        MiniArtifact mini = new MiniArtifact();
+        mini.build( artifact );
+        return mini;
     }
 
     private ModuleDescriptor getModuleDescriptor( File artifactFile )

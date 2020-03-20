@@ -95,6 +95,8 @@ under the License.
     <pluginTestingVersion>2.1</pluginTestingVersion>
     <javaVersion>7</javaVersion>
     <project.build.outputTimestamp>2020-03-07T11:40:47Z</project.build.outputTimestamp>
+    <fastjson.version>1.2.67</fastjson.version>
+    <snakeyaml.version>1.24</snakeyaml.version>
   </properties>
 
   <dependencyManagement>
@@ -115,7 +117,7 @@ under the License.
       <version>${mavenVersion}</version>
       <scope>test</scope>
     </dependency>
-  
+
     <!-- maven -->
     <dependency>
       <groupId>org.apache.maven</groupId>
@@ -293,7 +295,7 @@ under the License.
       <version>${pluginTestingVersion}</version>
       <scope>test</scope>
     </dependency>
-    <dependency> 
+    <dependency>
       <groupId>org.apache.maven.plugin-testing</groupId>
       <artifactId>maven-plugin-testing-harness</artifactId>
       <version>${pluginTestingVersion}</version>
@@ -345,6 +347,18 @@ under the License.
       <scope>test</scope>
     </dependency>
 
+    <!-- patched -->
+    <dependency>
+      <groupId>com.alibaba</groupId>
+      <artifactId>fastjson</artifactId>
+      <version>${fastjson.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+      <version>${snakeyaml.version}</version>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -377,7 +391,7 @@ under the License.
     </pluginManagement>
     <plugins>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId> 
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
         <executions>
           <execution>
@@ -460,7 +474,7 @@ under the License.
                 <mockRepo>
                   <source>src/it/mrm/repository</source>
                 </mockRepo>
-                <!-- 
+                <!--
                 <mockRepo>
                   <source>src/test/resources/m2repo</source>
                 </mockRepo>
